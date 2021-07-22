@@ -81,13 +81,13 @@ def set_link_loss_to(net, nodename_a, nodename_b, loss_rate):
 
 
 class PingServer(Application):
+    """
+    Wrapper class to run the NDNPingServer on a node
+    """
 
     def __init__(self, node):
         Application.__init__(self, node)
         self.prefix = unitname_to_name_prefix(node.name)
-    """
-    Wrapper class to run the chat application from each node
-    """
 
     def start(self):
         run_cmd = "ndnpingserver {0} &".format(
