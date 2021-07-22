@@ -26,22 +26,25 @@ DEBUG_GDB = False
 PLATOONS = 4
 NODES_PER_PLATOON = 5
 RUN_NUMBER_VALS = range(0, 5)
+LOSS_RATE_DISCONNECTED = 100
+LOSS_RATE_CONNECTED = 10
 
 APP_EXEC_VALS = [
-    #"/home/vagrant/mini-ndn/work/ndn-svs/build/examples/eval",          # SVS
-    #"/home/vagrant/mini-ndn/work/syncps/eval",                          # syncps
+    # "/home/vagrant/mini-ndn/work/ndn-svs/build/examples/eval",          # SVS
+    # "/home/vagrant/mini-ndn/work/syncps/eval",                          # syncps
 ]
 
 LOG_MAIN_PATH = "/home/vagrant/work/log/{}/".format(OVERALL_RUN)
 LOG_MAIN_DIRECTORY_VALS = [
-    #LOG_MAIN_PATH + "svs/",                                       # SVS
-    #LOG_MAIN_PATH + "syncps/",                                    # syncps
+    # LOG_MAIN_PATH + "svs/",                                       # SVS
+    # LOG_MAIN_PATH + "syncps/",                                    # syncps
 ]
 # ==================================================================
 
 RUN_NUMBER = 0
 SYNC_EXEC = None
 LOG_MAIN_DIRECTORY = None
+
 
 def getLogPath():
     LOG_NAME = "{}".format(RUN_NUMBER)
@@ -57,6 +60,7 @@ def getLogPath():
         os.chown(logpath + '/stdout', 1000, 1000)
 
     return logpath
+
 
 def unitname_to_name_prefix(nodename):
     """
@@ -79,6 +83,13 @@ def set_link_loss_to(net, nodename_a, nodename_b, loss_rate):
         link[1].config(loss=loss_rate)
 
 
+def connect_to_ap(net, ap_number):
+    info("Connect to AP{}\n".format(ap_number))
+    for i in range(0, PLATOONS):
+        ap_name = "ap{}".format(ap_number)
+        loss_rate = LOSS_RATE_CONNECTED if i == ap_number else LOSS_RATE_DISCONNECTED
+        set_link_loss_to(net, "uav", ap_name, loss_rate)
+
 
 class PingServer(Application):
     """
@@ -94,7 +105,9 @@ class PingServer(Application):
             self.prefix)
 
         ret = self.node.cmd(run_cmd)
-        info("[{}] running \"{}\" == {}\n".format(self.node.name, run_cmd, ret))
+        info("[{}] running \"{}\" == {}\n".format(
+            self.node.name, run_cmd, ret))
+
 
 if __name__ == '__main__':
     print(APP_EXEC_VALS)
@@ -119,7 +132,7 @@ if __name__ == '__main__':
             topo.addLink(access_points[i], unit, delay='10ms')
             units.append(unit)
 
-    ndn = Minindn(topo=topo, controller = OVSController)
+    ndn = Minindn(topo=topo, controller=OVSController)
 
     ndn.start()
 
@@ -153,11 +166,17 @@ if __name__ == '__main__':
     AppManager(ndn, [ndn.net[unit] for unit in units], PingServer)
 
     time.sleep(2)
-    set_link_loss_to(ndn.net, "uav", "ap0", 100)
+    connect_to_ap(ndn.net, 0)
+    time.sleep(2)
+    connect_to_ap(ndn.net, 1)
+    time.sleep(2)
+    connect_to_ap(ndn.net, 2)
+    time.sleep(2)
+    connect_to_ap(ndn.net, 3)
 
-    print("\n--- Link from UAV to AP0 is disabled, try the following to verify ---")
-    print("uav ndnping -o 4000 -i 1000 -c 4 -p $(openssl rand -hex 10) /ndn/platoon1/unit1")
-    print("uav ndnping -o 4000 -i 1000 -c 4 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
+    print("\n--- Link from UAV to AP3 should be the only one that is connected, try the following to verify ---")
+    print("uav ndnping -o 4000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
+    print("uav ndnping -o 4000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
     MiniNDNCLI(ndn.net)
 
     # for exec_i, app_exec in enumerate(APP_EXEC_VALS):
