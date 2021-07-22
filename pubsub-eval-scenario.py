@@ -175,8 +175,8 @@ if __name__ == '__main__':
     connect_to_ap(ndn.net, 3)
 
     print("\n--- Link from UAV to AP3 should be the only one that is connected, try the following to verify ---")
-    print("uav ndnping -o 4000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
-    print("uav ndnping -o 4000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
+    print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
+    print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
     MiniNDNCLI(ndn.net)
 
     # for exec_i, app_exec in enumerate(APP_EXEC_VALS):
