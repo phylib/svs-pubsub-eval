@@ -75,7 +75,6 @@ def set_link_loss_to(net, nodename_a, nodename_b, loss_rate):
     node_b = net[nodename_b]
     links = node_a.connectionsTo(node_b)
     for link in links:
-        print(link)
         link[0].config(loss=loss_rate)
         link[1].config(loss=loss_rate)
 
@@ -156,6 +155,9 @@ if __name__ == '__main__':
     time.sleep(2)
     set_link_loss_to(ndn.net, "uav", "ap0", 100)
 
+    print("\n--- Link from UAV to AP0 is disabled, try the following to verify ---")
+    print("uav ndnping -o 4000 -i 1000 -c 4 -p $(openssl rand -hex 10) /ndn/platoon1/unit1")
+    print("uav ndnping -o 4000 -i 1000 -c 4 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
     MiniNDNCLI(ndn.net)
 
     # for exec_i, app_exec in enumerate(APP_EXEC_VALS):
