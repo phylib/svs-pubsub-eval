@@ -1,0 +1,8 @@
+# CMake
+CMakeFiles/*
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+
+# Executables
+SVSClient
