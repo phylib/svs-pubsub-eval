@@ -158,7 +158,7 @@ protected:
     void fetchOutStandingVoiceSegements(ndn::Name name, int finalBlockId) {
         ndn::Name withoutSegmentNo = name.getPrefix(name.size() - 1);
 
-        for (int i = 1; i < finalBlockId; i++) {
+        for (int i = 1; i <= finalBlockId; i++) {
             ndn::Name toFetch(withoutSegmentNo);
             toFetch.appendSegment(i);
 
