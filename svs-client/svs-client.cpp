@@ -40,7 +40,6 @@ public:
     Program(const Options &options)
             : m_options(options),
               m_running(true),
-              m_dataStore(SVSync::DEFAULT_DATASTORE),
               m_rng(ndn::random::getRandomNumberEngine()),
               m_positionDataIntervalDist(1000 * 0.9, 1000 * 1.1), // Position data published every second
               m_voiceDataIntervalDist(10000, 60000), // Voice data published every 10-60 seconds
@@ -78,7 +77,7 @@ public:
 
                     std::cout << "Got Data: " << subData.producerPrefix << "[" << subData.seqNo << "] : "
                               << subData.data.getName()
-                              << " ; totalNoSegments = " << segments << std::endl;
+                              << " ; finalBlockId = " << segments << std::endl;
                     fetchOutStandingVoiceSegements(subData.data.getName(), segments);
                 });
 
@@ -117,7 +116,7 @@ protected:
 
     void
     onData(const ndn::Interest &, const ndn::Data &data) const {
-        std::cout << "Received Data " << data << std::endl;
+        std::cout << "Got Data: " << data.getName() << std::endl;
         // Todo: Log received Data packet
     }
 
@@ -140,10 +139,10 @@ protected:
      */
     void
     onDataInterest(const ndn::InterestFilter &, const ndn::Interest &interest) {
-        // Todo: Segfault whenever accessing the in-memory content store
-//        auto data = m_dataStore->find(interest);
-//        if (data != nullptr)
-//            face.put(*data);
+        auto data = m_dataStore.find(interest);
+        if (data != nullptr) {
+            face.put(*data);
+        }
     }
 
     /**
@@ -200,19 +199,18 @@ protected:
         name.append(m_options.m_id);
         name.appendTimestamp();
 
-        ndn::Data data(name);
-        data.setContent(block);
-        data.setFreshnessPeriod(ndn::time::milliseconds(1000));
-        m_keyChain.sign(data, m_signingInfo);
+        std::shared_ptr<ndn::Data> data = std::make_shared<ndn::Data>(name);
+        data->setContent(block);
+        data->setFreshnessPeriod(ndn::time::milliseconds(1000));
+        m_keyChain.sign(*data, m_signingInfo);
 
-        // Todo: Segfault a soon as datastore is used
-//        m_dataStore->insert(data);
+        m_dataStore.insert(*data);
 
         // Publishposition Data using publish channel
-        m_svspubsub->publishData(data, m_options.m_id);
+        m_svspubsub->publishData(*data, m_options.m_id);
 
         // Todo: Log published Data
-        std::cout << "Publish position data: " << data.getName() << " (" << buf.size() << " bytes)" << std::endl;
+        std::cout << "Publish position data: " << data->getName() << " (" << buf.size() << " bytes)" << std::endl;
     }
 
     /**
@@ -253,21 +251,21 @@ protected:
                     ndn::tlv::Content, buf.data(), voiceSize);
 
             // Data packet
-            name.appendSegment(i);
+            ndn::Name realName(name);
+            realName.appendSegment(i);
 
-            ndn::Data data(name);
-            data.setContent(block);
-            data.setFreshnessPeriod(ndn::time::milliseconds(1000));
-            data.setFinalBlock(ndn::name::Component::fromNumber(voiceSize - 1));
-            m_keyChain.sign(data, m_signingInfo);
+            std::shared_ptr<ndn::Data> data = std::make_shared<ndn::Data>(realName);
+            data->setContent(block);
+            data->setFreshnessPeriod(ndn::time::milliseconds(1000));
+            data->setFinalBlock(ndn::name::Component::fromNumber(voiceSize - 1));
+            m_keyChain.sign(*data, m_signingInfo);
 
-            // Todo: Segfault a soon as datastore is used
-//            m_dataStore->insert(*data);
+            m_dataStore.insert(*data);
 
             // Publish first segment of voice data using publish channel
             if (i == 0) {
-                m_svspubsub->publishData(data, m_options.m_id);
-                std::cout << "Publish voice data: " << data.getName() << " (" << buf.size() * voiceSize << " bytes)"
+                m_svspubsub->publishData(*data, m_options.m_id);
+                std::cout << "Publish voice data: " << data->getName() << " (" << buf.size() * voiceSize << " bytes)"
                           << std::endl;
             }
 
@@ -284,7 +282,7 @@ public:
     std::shared_ptr<SVSPubSub> m_svspubsub;
     ndn::KeyChain m_keyChain;
     ndn::security::SigningInfo m_signingInfo;
-    std::shared_ptr<DataStore> m_dataStore;
+    MemoryDataStore m_dataStore;
 
     ndn::random::RandomNumberEngine &m_rng;
     std::uniform_int_distribution<> m_positionDataIntervalDist; // Interval for position data publications
