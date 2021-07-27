@@ -70,8 +70,6 @@ public:
     }
 
     void publishData(const ndn::Data &data) override {
-
-        std::cout << "Publish Data " << data.getName() << std::endl;
         m_svspubsub->publishData(data);
     }
 
