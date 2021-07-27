@@ -28,6 +28,17 @@ target_include_directories(SVSClient
         ${NDN_CXX_INCLUDE_DIRS} ${NDN_SVS_INCLUDE_DIRS}
         )
 
+add_executable(SVSUAV src/svs-uav.cpp)
+target_link_libraries(SVSUAV
+        PUBLIC
+        ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES}
+        )
+target_include_directories(SVSUAV
+        PUBLIC
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${NDN_CXX_INCLUDE_DIRS} ${NDN_SVS_INCLUDE_DIRS}
+        )
+
 add_executable(SyncpsClient src/syncps-client.cpp
         src/AbstractProgram.h src/AbstractProgram.cpp
         src/syncps.h src/iblt.h)
