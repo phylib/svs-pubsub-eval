@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(SVSPubSubEvaluation)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "-pedantic -Wall -Werror -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wno-error=unused-variable -Wno-error=unused-but-set-variable -fdiagnostics-color -Wno-error=deprecated-declarations")
+set(CMAKE_CXX_FLAGS "-pedantic -Wall -Werror -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wno-error=unused-variable -Wno-error=unused-but-set-variable -Wno-error=deprecated-declarations -fdiagnostics-color -DBOOST_LOG_DYN_LINK")
 
 find_package(PkgConfig REQUIRED)
 
