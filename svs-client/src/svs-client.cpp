@@ -56,9 +56,8 @@ public:
                               << std::endl;
                 });
 
-        // Todo: Only subscribe to voice data of the own platoon
         m_svspubsub->subscribeToPrefix(
-                ndn::Name("/voice"), [&](SVSPubSub::SubscriptionData subData) {
+                ndn::Name("/voice").append(m_platoonPrefix), [&](SVSPubSub::SubscriptionData subData) {
                     // Todo: Log received Data
                     const unsigned long data_size = subData.data.getContent().value_size();
                     int segments = subData.data.getFinalBlock()->toNumber();
@@ -68,16 +67,6 @@ public:
                               << " ; finalBlockId = " << segments << std::endl;
                     fetchOutStandingVoiceSegements(subData.data.getName(), segments);
                 });
-
-        // Listen to data interests on /voice and Data
-        face.setInterestFilter("/voice/",
-                               bind(&SVSProgram::onDataInterest, this, _1, _2),
-                               nullptr, // RegisterPrefixSuccessCallback is optional
-                               bind(&SVSProgram::onRegisterFailed, this, _1, _2));
-        face.setInterestFilter("/position/",
-                               bind(&SVSProgram::onDataInterest, this, _1, _2),
-                               nullptr, // RegisterPrefixSuccessCallback is optional
-                               bind(&SVSProgram::onRegisterFailed, this, _1, _2));
     }
 
     void publishData(const ndn::Data &data) override {

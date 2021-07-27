@@ -23,12 +23,23 @@ public:
             : m_running(true),
               m_syncPrefix(syncPrefix),
               m_participantPrefix(participantPrefix),
+              m_platoonPrefix(participantPrefix.getPrefix(participantPrefix.size() - 1)),
               m_rng(ndn::random::getRandomNumberEngine()),
               m_positionDataIntervalDist(1000 * 0.9, 1000 * 1.1), // Position data published every second
               m_voiceDataIntervalDist(10000, 60000), // Voice data published every 10-60 seconds
               m_voiceDataSizeDist(12, 20) { // Size of voice publications between 12 and 20 bytes
 
         m_signingInfo.setSha256Signing();
+
+        // Listen to data interests on /voice and Data
+        face.setInterestFilter("/voice/",
+                               bind(&AbstractProgram::onDataInterest, this, _1, _2),
+                               nullptr, // RegisterPrefixSuccessCallback is optional
+                               bind(&AbstractProgram::onRegisterFailed, this, _1, _2));
+        face.setInterestFilter("/position/",
+                               bind(&AbstractProgram::onDataInterest, this, _1, _2),
+                               nullptr, // RegisterPrefixSuccessCallback is optional
+                               bind(&AbstractProgram::onRegisterFailed, this, _1, _2));
     }
 
     virtual void instanciateSync() = 0;
@@ -37,6 +48,7 @@ public:
 
     void
     run() {
+
         std::thread thread_svs([this] { face.processEvents(); });
         std::thread thread_position([this] { this->positionDataPublishingLoop(); });
         std::thread thread_voice([this] { this->voiceDataPublishingLoop(); });
@@ -125,6 +137,7 @@ protected:
     ndn::Face face;
     ndn::Name m_syncPrefix;
     ndn::Name m_participantPrefix;
+    ndn::Name m_platoonPrefix;
     ndn::security::SigningInfo m_signingInfo;
     ndn::KeyChain m_keyChain;
     ndn::svs::MemoryDataStore m_dataStore;
