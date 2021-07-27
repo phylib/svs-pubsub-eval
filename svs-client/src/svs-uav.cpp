@@ -36,15 +36,9 @@ public:
     SVSUAV(ndn::Name syncPrefix)
             : m_running(true),
               m_syncPrefix(syncPrefix),
-              m_uavPrefix("/uav"){
+              m_uavPrefix("/uav") {
 
         instanciateSync();
-
-        // The UaV needs to serve all participants data
-        face.setInterestFilter("/",
-                               bind(&SVSUAV::onDataInterest, this, _1, _2),
-                               nullptr, // RegisterPrefixSuccessCallback is optional
-                               bind(&SVSUAV::onRegisterFailed, this, _1, _2));
     }
 
     void
@@ -80,7 +74,23 @@ public:
 
                     std::shared_ptr<ndn::Data> data = std::make_shared<ndn::Data>(subData.data);
                     m_dataStore.insert(*data);
+                    std::shared_ptr<ndn::Data> outerData = std::make_shared<ndn::Data>(subData.outerData);
+                    m_dataStore.insert(*outerData);
                 });
+    }
+
+    void listenToPrefix(ndn::Name prefix) {
+        // The UaV needs to serve all participants data
+        std::cout << "UAV starts listening to prefixes of: " << prefix << std::endl;
+        face.setInterestFilter(prefix.append(m_syncPrefix),
+                               bind(&SVSUAV::onDataInterest, this, _1, _2),
+                               nullptr, // RegisterPrefixSuccessCallback is optional
+                               bind(&SVSUAV::onRegisterFailed, this, _1, _2));
+
+        face.setInterestFilter(prefix.append("MAPPING"),
+                               bind(&SVSUAV::onMappingInterest, this, _1, _2),
+                               nullptr, // RegisterPrefixSuccessCallback is optional
+                               bind(&SVSUAV::onRegisterFailed, this, _1, _2));
     }
 
     void publishData(const ndn::Data &data) {
@@ -89,6 +99,18 @@ public:
 
     void
     onMissingData(const std::vector<ndn::svs::MissingDataInfo> &v) {
+
+        // Check if already listening to all SV entries
+        for (MissingDataInfo mdi : v) {
+            if (std::find_if(m_coveredPrefixes.begin(), m_coveredPrefixes.end(),
+                             [mdi](ndn::Name n) { return n.compare(ndn::Name(mdi.session)) == 0; }) ==
+                m_coveredPrefixes.end()) {
+
+                // If we do not listen to this entry, start doing so
+                m_coveredPrefixes.insert(m_coveredPrefixes.end(), mdi.session);
+                listenToPrefix(mdi.session);
+            }
+        }
     }
 
     void
@@ -103,10 +125,18 @@ public:
      */
     void
     onDataInterest(const ndn::InterestFilter &, const ndn::Interest &interest) {
+        std::cout << "On Data Interest: " << interest.getName() << std::endl;
         auto data = m_dataStore.find(interest);
         if (data != nullptr) {
+            std::cout << "Serve Data Interest: " << interest.getName() << std::endl;
             face.put(*data);
         }
+    }
+
+    void
+    onMappingInterest(const ndn::InterestFilter &, const ndn::Interest &interest) {
+        std::cout << "On Mapping Interest: " << interest.getName() << std::endl;
+        m_svspubsub->getMappingProvider().onMappingQuery(interest);
     }
 
 protected:
@@ -119,6 +149,7 @@ protected:
     ndn::svs::MemoryDataStore m_dataStore;
 
     std::shared_ptr<SVSPubSub> m_svspubsub;
+    std::vector<ndn::Name> m_coveredPrefixes;
 
 };
 

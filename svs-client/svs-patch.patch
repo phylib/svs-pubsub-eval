@@ -1,0 +1,61 @@
+diff --git a/ndn-svs/mapping-provider.hpp b/ndn-svs/mapping-provider.hpp
+index fd0e6b2..7b832d7 100644
+--- a/ndn-svs/mapping-provider.hpp
++++ b/ndn-svs/mapping-provider.hpp
+@@ -99,6 +99,9 @@ public:
+                    const TimeoutCallback& onTimeout,
+                    const int nRetries = 0);
+ 
++  void
++  onMappingQuery(const Interest& interest);
++
+ private:
+   /**
+    * @brief Return data name for mapping query
+@@ -117,9 +120,6 @@ private:
+          const DataValidatedCallback& dataCallback,
+          const DataValidationErrorCallback& failCallback);
+ 
+-  void
+-  onMappingQuery(const Interest& interest);
+-
+ private:
+   const Name m_syncPrefix;
+   const NodeID m_id;
+diff --git a/ndn-svs/svspubsub.cpp b/ndn-svs/svspubsub.cpp
+index 4048167..b92cf74 100644
+--- a/ndn-svs/svspubsub.cpp
++++ b/ndn-svs/svspubsub.cpp
+@@ -194,7 +194,7 @@ SVSPubSub::onSyncData(const Data& syncData, const Subscription& subscription,
+     Data encapsulatedData(syncData.getContent().blockFromValue());
+ 
+     // Return data
+-    SubscriptionData subData = { encapsulatedData, streamName, seqNo, false };
++    SubscriptionData subData = { encapsulatedData, syncData, streamName, seqNo, false };
+ 
+     if (static_cast<bool>(m_securityOptions.validator))
+       m_securityOptions.validator->validate(
+diff --git a/ndn-svs/svspubsub.hpp b/ndn-svs/svspubsub.hpp
+index f0f7abb..82e83b7 100644
+--- a/ndn-svs/svspubsub.hpp
++++ b/ndn-svs/svspubsub.hpp
+@@ -61,6 +61,7 @@ public:
+   struct SubscriptionData
+   {
+     const Data& data;
++    const Data& outerData;
+     const Name& producerPrefix;
+     const SeqNo seqNo;
+     bool validated;
+@@ -121,6 +122,11 @@ public:
+     return m_svsync;
+   }
+ 
++  MappingProvider&
++  getMappingProvider() {
++    return m_mappingProvider;
++  }
++
+ private:
+   struct Subscription
+   {
