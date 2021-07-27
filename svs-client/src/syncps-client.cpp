@@ -33,7 +33,7 @@ public:
         std::cout << "Create syncps Instance" << std::endl;
 
         m_sync = std::make_shared<syncps::SyncPubsub>(
-                face, "/ndn/svs", isExpired, filterPubs);
+                face, m_syncPrefix, isExpired, filterPubs);
         m_sync->setSyncInterestLifetime(ndn::time::milliseconds(1000));
 
         m_sync->subscribeTo(
