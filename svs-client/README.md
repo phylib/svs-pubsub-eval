@@ -2,6 +2,19 @@
 
 ## Install
 
+First install SVS as the dependency
+
+```bash
+git clone https://github.com/named-data/ndn-svs.git ndn-svs
+cd ndn-svs
+git checkout develop
+git apply ../path-to/svs-patch.patch
+./waf
+sudo ./waf install
+```
+
+Then compile executables using CMake
+
 ```bash
 cmake .
 make
