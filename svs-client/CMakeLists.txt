@@ -16,7 +16,8 @@ pkg_check_modules(NDN_SVS REQUIRED libndn-svs)
 # Check if Boost and all components are installed
 FIND_PACKAGE(Boost 1.65 COMPONENTS system thread program_options filesystem iostreams REQUIRED)
 
-add_executable(SVSClient svs-client.cpp)
+add_executable(SVSClient src/svs-client.cpp
+        src/AbstractProgram.h src/AbstractProgram.cpp)
 target_link_libraries(SVSClient
         PUBLIC
         ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES}
