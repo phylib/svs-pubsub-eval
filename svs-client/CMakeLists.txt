@@ -40,3 +40,15 @@ target_include_directories(SyncpsClient
         ${CMAKE_CURRENT_BINARY_DIR}
         ${NDN_CXX_INCLUDE_DIRS} ${NDN_SVS_INCLUDE_DIRS}
         )
+
+add_executable(SyncpsUAV src/syncps-uav.cpp
+        src/syncps.h src/iblt.h)
+target_link_libraries(SyncpsUAV
+        PUBLIC
+        ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES} ${Boost_LIBRARIES}
+        )
+target_include_directories(SyncpsUAV
+        PUBLIC
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${NDN_CXX_INCLUDE_DIRS} ${NDN_SVS_INCLUDE_DIRS}
+        )
