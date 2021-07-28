@@ -391,7 +391,7 @@ namespace syncps {
             for (const auto &p : pOurs) {
                 NDN_LOG_DEBUG("Send pub " << p->getName());
                 pubs.push_back((*(p)).wireEncode());
-                pubs.wire();
+                pubs.encode();
                 if (pubs.size() >= maxPubSize) {
                     break;
                 }
