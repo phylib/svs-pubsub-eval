@@ -34,6 +34,11 @@ APP_EXEC_VALS = [
     # "/home/vagrant/mini-ndn/work/syncps/eval",                          # syncps
 ]
 
+APP_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SVSClient"
+UAV_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SVSUAV"
+#APP_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SyncpsClient"
+#UAV_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SyncpsUAV"
+
 LOG_MAIN_PATH = "/home/vagrant/work/log/{}/".format(OVERALL_RUN)
 LOG_MAIN_DIRECTORY_VALS = [
     # LOG_MAIN_PATH + "svs/",                                       # SVS
@@ -109,6 +114,41 @@ class PingServer(Application):
             self.node.name, run_cmd, ret))
 
 
+class PlatoonClient(Application):
+    """
+    Wrapper class to run the PlatoonClient on a node
+    """
+
+    def __init__(self, node):
+        Application.__init__(self, node)
+        self.prefix = unitname_to_name_prefix(node.name)
+
+    def start(self):
+        run_cmd = "{} {} > log/client.out 2> log/client.err &".format(
+            APP_EXECUTABLE, self.prefix)
+
+        ret = self.node.cmd(run_cmd)
+        info("[{}] running \"{}\" == {}\n".format(
+            self.node.name, run_cmd, ret))
+
+
+class UAVClient(Application):
+    """
+    Wrapper class to run the UAVClient on a node
+    """
+
+    def __init__(self, node):
+        Application.__init__(self, node)
+
+    def start(self):
+        run_cmd = "{}  > log/uav.out  2> log/uav.err &".format(
+            UAV_EXECUTABLE)
+
+        ret = self.node.cmd(run_cmd)
+        info("[{}] running \"{}\" == {}\n".format(
+            self.node.name, run_cmd, ret))
+
+
 if __name__ == '__main__':
     print(APP_EXEC_VALS)
 
@@ -144,6 +184,7 @@ if __name__ == '__main__':
     info('Setting NFD strategy to multicast on all nodes with prefix')
     for node in tqdm(ndn.net.hosts):
         Nfdc.setStrategy(node, "/ndn/", Nfdc.STRATEGY_MULTICAST)
+        Nfdc.setStrategy(node, "/voice/", Nfdc.STRATEGY_MULTICAST)
 
     info('Adding static routes to NFD\n')
     start = int(time.time() * 1000)
@@ -152,9 +193,7 @@ if __name__ == '__main__':
 
     grh = NdnRoutingHelper(ndn.net, 'udp', 'link-state')
     for host in ndn.net.hosts:
-        grh.addOrigin([host], ["/ndn"])
-    for unit in units:
-        grh.addOrigin([ndn.net[unit]], [unitname_to_name_prefix(unit)])
+        grh.addOrigin([host], ["/ndn", "/voice"])
 
     grh.calculateNPossibleRoutes()
 
@@ -163,21 +202,28 @@ if __name__ == '__main__':
     info('Sleeping 10 seconds\n')
     time.sleep(3 if DEBUG_GDB else 10)
 
-    AppManager(ndn, [ndn.net[unit] for unit in units], PingServer)
+    AppManager(ndn, [ndn.net[unit] for unit in units], PlatoonClient)
+    AppManager(ndn, [ndn.net["uav"]], UAVClient)
 
-    time.sleep(2)
-    connect_to_ap(ndn.net, 0)
-    time.sleep(2)
-    connect_to_ap(ndn.net, 1)
-    time.sleep(2)
-    connect_to_ap(ndn.net, 2)
-    time.sleep(2)
-    connect_to_ap(ndn.net, 3)
+    current_link = 0
+    for i in range(0, 10):
+        connect_to_ap(ndn.net, current_link)
+        current_link = (current_link + 1) % 4
+        time.sleep(30)
 
-    print("\n--- Link from UAV to AP3 should be the only one that is connected, try the following to verify ---")
-    print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
-    print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
-    MiniNDNCLI(ndn.net)
+    # time.sleep(2)
+    # connect_to_ap(ndn.net, 0)
+    # time.sleep(2)
+    # connect_to_ap(ndn.net, 1)
+    # time.sleep(2)
+    # connect_to_ap(ndn.net, 2)
+    # time.sleep(2)
+    # connect_to_ap(ndn.net, 3)
+
+    # print("\n--- Link from UAV to AP3 should be the only one that is connected, try the following to verify ---")
+    # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
+    # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
+    #MiniNDNCLI(ndn.net)
 
     # for exec_i, app_exec in enumerate(APP_EXEC_VALS):
     #     for run_number in RUN_NUMBER_VALS:
