@@ -13,6 +13,9 @@ pkg_check_modules(NDN_CXX REQUIRED libndn-cxx)
 pkg_check_modules(NDN_SVS REQUIRED libndn-svs)
 #include_directories(${NDN_SVS_INCLUDE_DIRS})
 
+# Check if Catch2 (Lib for tests) is installed
+find_package(Catch2 REQUIRED)
+
 # Check if Boost and all components are installed
 FIND_PACKAGE(Boost 1.65 COMPONENTS system thread program_options filesystem iostreams log REQUIRED)
 
@@ -62,4 +65,18 @@ target_include_directories(SyncpsUAV
         PUBLIC
         ${CMAKE_CURRENT_BINARY_DIR}
         ${NDN_CXX_INCLUDE_DIRS} ${NDN_SVS_INCLUDE_DIRS}
+        )
+
+add_executable(IBFTest test/IBFTest.cpp
+        src/iblt.h)
+target_link_libraries(IBFTest
+        PUBLIC
+        Catch2::Catch2
+        ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES} ${Boost_LIBRARIES}
+        )
+target_include_directories(IBFTest
+        PUBLIC
+        ${CMAKE_CURRENT_BINARY_DIR}
+        ${NDN_CXX_INCLUDE_DIRS} ${NDN_SVS_INCLUDE_DIRS}
+        ${CATCH2_INCLUDE_DIRS}
         )

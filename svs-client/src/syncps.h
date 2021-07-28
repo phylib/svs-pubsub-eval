@@ -54,7 +54,7 @@ namespace syncps {
     constexpr int maxPubSize = 1300;    // max payload in Data (approximate)
 
     using namespace ndn::literals::time_literals;
-    constexpr ndn::time::milliseconds maxPubLifetime = 1_s;
+    constexpr ndn::time::milliseconds maxPubLifetime = 120_s;
     constexpr ndn::time::milliseconds maxClockSkew = 1_s;
 
 /**
