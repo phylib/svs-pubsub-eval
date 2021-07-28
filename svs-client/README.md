@@ -31,6 +31,7 @@ nfdc strategy set /ndn/svs /localhost/nfd/strategy/multicast
 Start NFD and then start the clients
 
 ```bash
+nfdc cs erase /
 ./SVSClient /platoon1/unit3
 ./SVSClient /platoon2/unit4
 ```
