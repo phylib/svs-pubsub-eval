@@ -91,7 +91,7 @@ def set_link_loss_to(net, nodename_a, nodename_b, loss_rate):
 def connect_to_ap(net, ap_number):
     info("Connect to AP{}\n".format(ap_number))
     for i in range(0, PLATOONS):
-        ap_name = "ap{}".format(ap_number)
+        ap_name = "ap{}".format(i)
         loss_rate = LOSS_RATE_CONNECTED if i == ap_number else LOSS_RATE_DISCONNECTED
         set_link_loss_to(net, "uav", ap_name, loss_rate)
 
@@ -103,7 +103,7 @@ class PingServer(Application):
 
     def __init__(self, node):
         Application.__init__(self, node)
-        self.prefix = unitname_to_name_prefix(node.name)
+        self.prefix = "/ndn/{}-site/".format(node.name)
 
     def start(self):
         run_cmd = "ndnpingserver {0} &".format(
@@ -112,7 +112,6 @@ class PingServer(Application):
         ret = self.node.cmd(run_cmd)
         info("[{}] running \"{}\" == {}\n".format(
             self.node.name, run_cmd, ret))
-
 
 class PlatoonClient(Application):
     """
@@ -192,8 +191,10 @@ if __name__ == '__main__':
     print(units[0])
 
     grh = NdnRoutingHelper(ndn.net, 'udp', 'link-state')
-    for host in ndn.net.hosts:
-        grh.addOrigin([host], ["/ndn", "/voice"])
+    # Add /ndn and /voice prefix to the UAV and to all units
+    grh.addOrigin([ndn.net["uav"]], ["/ndn", "/voice"])
+    for unit in units:
+        grh.addOrigin([ndn.net[unit]], ["/ndn", "/voice"])
 
     grh.calculateNPossibleRoutes()
 
@@ -202,13 +203,19 @@ if __name__ == '__main__':
     info('Sleeping 10 seconds\n')
     time.sleep(3 if DEBUG_GDB else 10)
 
+    info('UAV initially connects to AP0\n')
+    connect_to_ap(ndn.net, 0)
+
+    info('Start units and UAV\n')
     AppManager(ndn, [ndn.net[unit] for unit in units], PlatoonClient)
     AppManager(ndn, [ndn.net["uav"]], UAVClient)
+    #all_nodes = [ndn.net[unit] for unit in units] + [ndn.net["uav"]]
+    #AppManager(ndn, all_nodes, PingServer)
 
     current_link = 0
     for i in range(0, 10):
         connect_to_ap(ndn.net, current_link)
-        current_link = (current_link + 1) % 4
+        current_link = (current_link + 1) % PLATOONS
         time.sleep(30)
 
     # time.sleep(2)
@@ -223,7 +230,7 @@ if __name__ == '__main__':
     # print("\n--- Link from UAV to AP3 should be the only one that is connected, try the following to verify ---")
     # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
     # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
-    #MiniNDNCLI(ndn.net)
+    # MiniNDNCLI(ndn.net)
 
     # for exec_i, app_exec in enumerate(APP_EXEC_VALS):
     #     for run_number in RUN_NUMBER_VALS:
