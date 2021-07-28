@@ -13,6 +13,19 @@ git apply ../path-to/svs-patch.patch
 sudo ./waf install
 ```
 
+To install Catch2:
+
+```bash
+git clone https://github.com/catchorg/Catch2.git
+cd Catch2
+git checkout v2.13.6
+mkdir build
+cd build
+cmake ..
+make -j && sudo make install
+sudo ldconfig 
+```
+
 Then compile executables using CMake
 
 ```bash
