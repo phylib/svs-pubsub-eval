@@ -57,12 +57,7 @@ public:
 
     static inline const syncps::FilterPubsCb filterPubs =
             [](auto &pOurs, auto &pOthers) mutable {
-                // Only reply if at least one of the pubs is ours. Order the
-                // reply by ours/others then most recent first (to minimize latency).
-                // Respond with as many pubs will fit in one Data.
-                if (pOurs.empty()) {
-                    return pOurs;
-                }
+                // Always attempt to send back everything
                 const auto cmp = [](const auto p1, const auto p2) {
                     ndn::time::system_clock::TimePoint tp1 = (p1->getName()[-1].isTimestamp())
                                                              ? p1->getName()[-1].toTimestamp()
