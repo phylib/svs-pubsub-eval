@@ -2,7 +2,6 @@
 // Created by phmoll on 7/26/21.
 //
 
-
 #include "AbstractProgram.h"
 
 void AbstractProgram::fetchOutStandingVoiceSegements(ndn::Name name, int finalBlockId) {
@@ -51,6 +50,7 @@ void AbstractProgram::publishPositionData() {
 
     // Publishposition Data using publish channel
     publishData(*data);
+    BOOST_LOG_TRIVIAL(info) << "PUBL_MSG::" << name.toUri();
 
     // Todo: Log published Data
     std::cout << "Publish position data: " << data->getName() << " (" << buf.size() << " bytes)" << std::endl;
@@ -97,6 +97,7 @@ void AbstractProgram::publishVoiceData() {
         // Publish first segment of voice data using publish channel
         if (i == 0) {
             publishData(*data);
+            BOOST_LOG_TRIVIAL(info) << "PUBL_MSG::" << realName.toUri();
             std::cout << "Publish voice data: " << data->getName() << " (" << buf.size() * voiceSize << " bytes)"
                       << std::endl;
         }

@@ -45,6 +45,8 @@ public:
 
                     std::cout << "Got Data: " << publication.getName()
                               << std::endl;
+
+                    BOOST_LOG_TRIVIAL(info) << "RECV_MSG::" << publication.getName().toUri();
                 }
         );
 
@@ -58,6 +60,7 @@ public:
 
                     std::cout << "Got Data: " << publication.getName() << ", fetch " << segments << " segments"
                               << std::endl;
+                    BOOST_LOG_TRIVIAL(info) << "RECV_MSG::" << publication.getName().toUri();
 
                     fetchOutStandingVoiceSegements(publication.getName(), segments);
                 }
@@ -114,13 +117,15 @@ protected:
 };
 
 int main(int argc, char **argv) {
-    if (argc != 2) {
-        std::cout << "Usage: client <prefix>" << std::endl;
+    if (argc != 3) {
+        std::cout << "Usage: client <prefix> <logfile>" << std::endl;
         exit(1);
     }
 
     ndn::Name syncPrefix("/ndn/svs");
     ndn::Name participantPrefix(argv[1]);
+
+    initlogger(argv[2]);
 
     SVSProgram program(syncPrefix, participantPrefix);
     program.run();

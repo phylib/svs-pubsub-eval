@@ -17,13 +17,13 @@ pkg_check_modules(NDN_SVS REQUIRED libndn-svs)
 find_package(Catch2 REQUIRED)
 
 # Check if Boost and all components are installed
-FIND_PACKAGE(Boost 1.65 COMPONENTS system thread program_options filesystem iostreams log REQUIRED)
+FIND_PACKAGE(Boost 1.65 COMPONENTS system thread program_options filesystem iostreams log_setup log REQUIRED)
 
 add_executable(SVSClient src/svs-client.cpp
         src/AbstractProgram.h src/AbstractProgram.cpp)
 target_link_libraries(SVSClient
         PUBLIC
-        ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES}
+        ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES} ${Boost_LIBRARIES}
         )
 target_include_directories(SVSClient
         PUBLIC
@@ -34,7 +34,7 @@ target_include_directories(SVSClient
 add_executable(SVSUAV src/svs-uav.cpp)
 target_link_libraries(SVSUAV
         PUBLIC
-        ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES}
+        ${NDN_CXX_LIBRARIES} ${NDN_SVS_LIBRARIES} ${Boost_LIBRARIES}
         )
 target_include_directories(SVSUAV
         PUBLIC

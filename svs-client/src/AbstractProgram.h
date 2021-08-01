@@ -5,6 +5,8 @@
 #ifndef SVSPUBSUBEVALUATION_ABSTRACTPROGRAM_H
 #define SVSPUBSUBEVALUATION_ABSTRACTPROGRAM_H
 
+#include "log.hpp"
+
 #include <thread>
 #include <ndn-cxx/util/random.hpp>
 #include <ndn-svs/store-memory.hpp>

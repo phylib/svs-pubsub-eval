@@ -21,7 +21,7 @@ from mininet.node import OVSController
 from tqdm import tqdm
 
 # ======================= CONFIGURATION ============================
-OVERALL_RUN = 2
+OVERALL_RUN = 1
 DEBUG_GDB = False
 PLATOONS = 4
 NODES_PER_PLATOON = 5
@@ -29,31 +29,29 @@ RUN_NUMBER_VALS = range(0, 5)
 LOSS_RATE_DISCONNECTED = 100
 LOSS_RATE_CONNECTED = 10
 
-APP_EXEC_VALS = [
-    # "/home/vagrant/mini-ndn/work/ndn-svs/build/examples/eval",          # SVS
-    # "/home/vagrant/mini-ndn/work/syncps/eval",                          # syncps
-]
+PROTO = "svs"
+#PROTO = "syncps"
 
-APP_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SVSClient"
-UAV_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SVSUAV"
-#APP_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SyncpsClient"
-#UAV_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SyncpsUAV"
+APP_EXECUTABLE = None
+UAV_EXECUTABLE = None
 
-LOG_MAIN_PATH = "/home/vagrant/work/log/{}/".format(OVERALL_RUN)
-LOG_MAIN_DIRECTORY_VALS = [
-    # LOG_MAIN_PATH + "svs/",                                       # SVS
-    # LOG_MAIN_PATH + "syncps/",                                    # syncps
-]
+if PROTO == "svs":
+    APP_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SVSClient"
+    UAV_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SVSUAV"
+elif PROTO == "syncps":
+    APP_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SyncpsClient"
+    UAV_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SyncpsUAV"
+
+LOG_MAIN_PATH = "/vagrant/logs/{}/".format(OVERALL_RUN)
 # ==================================================================
 
 RUN_NUMBER = 0
 SYNC_EXEC = None
-LOG_MAIN_DIRECTORY = None
-
+LOG_MAIN_DIRECTORY = LOG_MAIN_PATH
 
 def getLogPath():
-    LOG_NAME = "{}".format(RUN_NUMBER)
-    logpath = LOG_MAIN_DIRECTORY + LOG_NAME
+    LOG_NAME = "{}/{}/{}".format(LOG_MAIN_DIRECTORY, PROTO, RUN_NUMBER)
+    logpath = LOG_NAME
 
     if not os.path.exists(logpath):
         os.makedirs(logpath)
@@ -123,8 +121,8 @@ class PlatoonClient(Application):
         self.prefix = unitname_to_name_prefix(node.name)
 
     def start(self):
-        run_cmd = "{} {} > log/client.out 2> log/client.err &".format(
-            APP_EXECUTABLE, self.prefix)
+        run_cmd = "{0} {1} {2}/{3}.log > {2}/stdout/{3}.log 2> {2}/stderr/{3}.log &".format(
+            APP_EXECUTABLE, self.prefix, getLogPath(), self.node.name)
 
         ret = self.node.cmd(run_cmd)
         info("[{}] running \"{}\" == {}\n".format(
@@ -140,17 +138,14 @@ class UAVClient(Application):
         Application.__init__(self, node)
 
     def start(self):
-        run_cmd = "{}  > log/uav.out  2> log/uav.err &".format(
-            UAV_EXECUTABLE)
-
+        run_cmd = "{0} > {1}/stdout/{2}.log 2> {1}/stderr/{2}.log &".format(
+            UAV_EXECUTABLE, getLogPath(), self.node.name)
         ret = self.node.cmd(run_cmd)
         info("[{}] running \"{}\" == {}\n".format(
             self.node.name, run_cmd, ret))
 
 
 if __name__ == '__main__':
-    print(APP_EXEC_VALS)
-
     setLogLevel('info')
 
     Minindn.cleanUp()
@@ -177,8 +172,8 @@ if __name__ == '__main__':
 
     info('Starting NFD on nodes\n')
     nfds = AppManager(ndn, ndn.net.hosts, Nfd)
-    info('Sleeping 10 seconds\n')
-    time.sleep(3 if DEBUG_GDB else 10)
+    info('Sleeping 4 seconds\n')
+    time.sleep(3 if DEBUG_GDB else 4)
 
     info('Setting NFD strategy to multicast on all nodes with prefix')
     for node in tqdm(ndn.net.hosts):
@@ -200,78 +195,52 @@ if __name__ == '__main__':
 
     end = int(time.time() * 1000)
     info('Added static routes to NFD in {} ms\n'.format(end - start))
-    info('Sleeping 10 seconds\n')
-    time.sleep(3 if DEBUG_GDB else 10)
+    info('Sleeping 4 seconds\n')
+    time.sleep(3 if DEBUG_GDB else 4)
 
-    info('UAV initially connects to AP0\n')
-    connect_to_ap(ndn.net, 0)
-
-    info('Start units and UAV\n')
-    AppManager(ndn, [ndn.net[unit] for unit in units], PlatoonClient)
-    AppManager(ndn, [ndn.net["uav"]], UAVClient)
     #all_nodes = [ndn.net[unit] for unit in units] + [ndn.net["uav"]]
     #AppManager(ndn, all_nodes, PingServer)
-
-    current_link = 0
-    for i in range(0, 10):
-        connect_to_ap(ndn.net, current_link)
-        current_link = (current_link + 1) % PLATOONS
-        time.sleep(30)
-
-    # time.sleep(2)
-    # connect_to_ap(ndn.net, 0)
-    # time.sleep(2)
-    # connect_to_ap(ndn.net, 1)
-    # time.sleep(2)
-    # connect_to_ap(ndn.net, 2)
-    # time.sleep(2)
-    # connect_to_ap(ndn.net, 3)
-
     # print("\n--- Link from UAV to AP3 should be the only one that is connected, try the following to verify ---")
     # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
     # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
     # MiniNDNCLI(ndn.net)
 
-    # for exec_i, app_exec in enumerate(APP_EXEC_VALS):
-    #     for run_number in RUN_NUMBER_VALS:
-    #         # Set globals
-    #         RUN_NUMBER = run_number
-    #         APP_EXEC = app_exec
-    #         LOG_MAIN_DIRECTORY = LOG_MAIN_DIRECTORY_VALS[exec_i]
+    for run_number in RUN_NUMBER_VALS:
+        # Set globals
+        RUN_NUMBER = run_number
 
-    #         # Clear content store
-    #         for node in ndn.net.hosts:
-    #             cmd = 'nfdc cs erase /'
-    #             node.cmd(cmd)
+        # Clear content store
+        for node in ndn.net.hosts:
+            cmd = 'nfdc cs erase /'
+            node.cmd(cmd)
 
-    #             with open("{}/report-start-{}.status".format(getLogPath(), node.name), "w") as f:
-    #                 f.write(node.cmd('nfdc status report'))
+            with open("{}/report-start-{}.status".format(getLogPath(), node.name), "w") as f:
+                f.write(node.cmd('nfdc status report'))
 
-    #         time.sleep(1)
+        time.sleep(1)
 
-    #         random.seed(RUN_NUMBER)
-    #         allowed_hosts = [x for x in ndn.net.hosts if len(x.intfList()) < 8]
-    #         pub_hosts = random.sample(allowed_hosts, NUM_NODES)
+        random.seed(RUN_NUMBER)
 
-    #         # ================= SVS BEGIN ====================================
+        info('UAV initially connects to AP0\n')
+        connect_to_ap(ndn.net, 0)
 
-    #         # identity_app = AppManager(ndn, pub_hosts, IdentityApplication)
-    #         svs_chat_app = AppManager(ndn, pub_hosts, SvsChatApplication)
+        info('Start units and UAV\n')
+        AppManager(ndn, [ndn.net[unit] for unit in units], PlatoonClient)
+        AppManager(ndn, [ndn.net["uav"]], UAVClient)
 
-    #         # =================== SVS END ====================================
+        current_link = 0
+        for i in range(0, 10):
+            connect_to_ap(ndn.net, current_link)
+            current_link = (current_link + 1) % PLATOONS
+            time.sleep(3)
 
-    #         pids = get_pids()
-    #         info("pids: {}\n".format(pids))
-    #         count = count_running(pids)
-    #         while count > 0:
-    #             info("{} nodes are runnning\n".format(count))
-    #             time.sleep(5)
-    #             count = count_running(pids)
+        # kill all
+        os.system('pkill ' + APP_EXECUTABLE.split('/')[-1])
+        os.system('pkill ' + UAV_EXECUTABLE.split('/')[-1])
+        time.sleep(3)
 
-    #         for node in ndn.net.hosts:
-    #             with open("{}/report-end-{}.status".format(getLogPath(), node.name), "w") as f:
-    #                 f.write(node.cmd('nfdc status report'))
+        for node in ndn.net.hosts:
+            with open("{}/report-end-{}.status".format(getLogPath(), node.name), "w") as f:
+                f.write(node.cmd('nfdc status report'))
 
     ndn.stop()
-
-    print(APP_EXEC_VALS)
