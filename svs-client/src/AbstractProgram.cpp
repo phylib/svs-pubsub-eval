@@ -4,6 +4,8 @@
 
 #include "AbstractProgram.h"
 
+bool receivedSigInt = false;
+
 void AbstractProgram::fetchOutStandingVoiceSegements(ndn::Name name, int finalBlockId) {
     ndn::Name withoutSegmentNo = name.getPrefix(name.size() - 1);
 
@@ -29,6 +31,8 @@ void AbstractProgram::positionDataPublishingLoop() {
 }
 
 void AbstractProgram::publishPositionData() {
+    // Abort if received one interrupt
+    if (receivedSigInt) return;
 
     // Generate a block of random Data
     std::array<__uint8_t, 16> buf{};
@@ -65,6 +69,9 @@ void AbstractProgram::voiceDataPublishingLoop() {
 }
 
 void AbstractProgram::publishVoiceData() {
+    // Abort if received one interrupt
+    if (receivedSigInt) return;
+
     // Number of data segments
     int voiceSize = m_voiceDataSizeDist(m_rng);
 

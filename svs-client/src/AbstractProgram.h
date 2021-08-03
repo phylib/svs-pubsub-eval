@@ -7,6 +7,7 @@
 
 #include "log.hpp"
 
+#include <signal.h>
 #include <thread>
 #include <ndn-cxx/util/random.hpp>
 #include <ndn-svs/store-memory.hpp>
@@ -17,6 +18,8 @@
 #include <iostream>
 
 using namespace std::chrono_literals;
+
+extern bool receivedSigInt;
 
 class AbstractProgram {
 
@@ -50,6 +53,7 @@ public:
 
     void
     run() {
+        handleInterrupts();
 
         std::thread thread_svs([this] { face.processEvents(); });
         std::thread thread_position([this] { this->positionDataPublishingLoop(); });
@@ -58,6 +62,25 @@ public:
         thread_svs.join();
         thread_position.join();
         thread_voice.join();
+    }
+
+    void
+    handleInterrupts() {
+        struct sigaction sigIntHandler;
+
+        // Lambda cannot capture context so use global variable
+        sigIntHandler.sa_handler = [] (int s) {
+            if (receivedSigInt) {
+                exit(0);
+            } else {
+                receivedSigInt = true;
+            }
+        };
+
+        sigemptyset(&sigIntHandler.sa_mask);
+        sigIntHandler.sa_flags = 0;
+
+        sigaction(SIGINT, &sigIntHandler, NULL);
     }
 
 protected:
