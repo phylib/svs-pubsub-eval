@@ -3,6 +3,7 @@ import time
 import configparser
 import psutil
 import os
+import json
 from collections import defaultdict
 
 from mininet.log import setLogLevel, info
@@ -28,6 +29,11 @@ NODES_PER_PLATOON = 5
 RUN_NUMBER_VALS = range(0, 5)
 LOSS_RATE_DISCONNECTED = 100
 LOSS_RATE_CONNECTED = 10
+SWITCH_TIME = 30
+NUM_ROUNDS = 3
+STATUS_LOG_INTERVAL_MS = 500
+
+NFD_SLEEP_TIME = 2
 
 PROTO = "svs"
 #PROTO = "syncps"
@@ -170,10 +176,18 @@ if __name__ == '__main__':
 
     ndn.start()
 
+    # Dump IP addresses of nodes to JSON
+    ips = {}
+    for node in ndn.net.hosts:
+        ips[node.name] = [node.IP(n) for n in node.intfList()]
+    with open("{}/ips.json".format(getLogPath()), "w") as f:
+        json.dump(ips, f, indent=4)
+    info('Wrote IP addresses to ips.json\n')
+
     info('Starting NFD on nodes\n')
     nfds = AppManager(ndn, ndn.net.hosts, Nfd)
-    info('Sleeping 4 seconds\n')
-    time.sleep(3 if DEBUG_GDB else 4)
+    info('Sleeping {} seconds\n'.format(NFD_SLEEP_TIME))
+    time.sleep(NFD_SLEEP_TIME)
 
     info('Setting NFD strategy to multicast on all nodes with prefix')
     for node in tqdm(ndn.net.hosts):
@@ -195,8 +209,8 @@ if __name__ == '__main__':
 
     end = int(time.time() * 1000)
     info('Added static routes to NFD in {} ms\n'.format(end - start))
-    info('Sleeping 4 seconds\n')
-    time.sleep(3 if DEBUG_GDB else 4)
+    info('Sleeping {} seconds\n'.format(NFD_SLEEP_TIME))
+    time.sleep(NFD_SLEEP_TIME)
 
     #all_nodes = [ndn.net[unit] for unit in units] + [ndn.net["uav"]]
     #AppManager(ndn, all_nodes, PingServer)
@@ -204,6 +218,14 @@ if __name__ == '__main__':
     # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
     # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
     # MiniNDNCLI(ndn.net)
+
+    START_TIME = round(time.time() * 1000)
+
+    def writeStatus(prefix):
+        for node in ndn.net.hosts:
+            with open("{}/report-{}-{}.status".format(getLogPath(), prefix, node.name), "a") as f:
+                f.write("EVAL_TIME=={}\n".format(round(time.time() * 1000) - START_TIME))
+                f.write(node.cmd('nfdc status report'))
 
     for run_number in RUN_NUMBER_VALS:
         # Set globals
@@ -214,8 +236,7 @@ if __name__ == '__main__':
             cmd = 'nfdc cs erase /'
             node.cmd(cmd)
 
-            with open("{}/report-start-{}.status".format(getLogPath(), node.name), "w") as f:
-                f.write(node.cmd('nfdc status report'))
+        writeStatus('start')
 
         time.sleep(1)
 
@@ -229,18 +250,23 @@ if __name__ == '__main__':
         AppManager(ndn, [ndn.net["uav"]], UAVClient)
 
         current_link = 0
-        for i in range(0, 10):
+        for i in range(0, (NUM_ROUNDS + 2) * PLATOONS + 1):
+            if i == NUM_ROUNDS * PLATOONS:
+                os.system('pkill -SIGINT ' + APP_EXECUTABLE.split('/')[-1])
+                SWITCH_TIME *= 2
+
             connect_to_ap(ndn.net, current_link)
             current_link = (current_link + 1) % PLATOONS
-            time.sleep(3)
+
+            for _ in range(0, SWITCH_TIME * (1000 / STATUS_LOG_INTERVAL_MS)):
+                time.sleep(STATUS_LOG_INTERVAL_MS / 1000)
+                writeStatus('eval')
 
         # kill all
         os.system('pkill ' + APP_EXECUTABLE.split('/')[-1])
         os.system('pkill ' + UAV_EXECUTABLE.split('/')[-1])
         time.sleep(3)
 
-        for node in ndn.net.hosts:
-            with open("{}/report-end-{}.status".format(getLogPath(), node.name), "w") as f:
-                f.write(node.cmd('nfdc status report'))
+        writeStatus('end')
 
     ndn.stop()
