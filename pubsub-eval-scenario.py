@@ -22,11 +22,11 @@ from mininet.node import OVSController
 from tqdm import tqdm
 
 # ======================= CONFIGURATION ============================
-OVERALL_RUN = 2
+OVERALL_RUN = 10
 DEBUG_GDB = False
 PLATOONS = 4
 NODES_PER_PLATOON = 5
-RUN_NUMBER_VALS = range(0, 5)
+RUN_NUMBER_VALS = range(0, 1)
 LOSS_RATE_DISCONNECTED = 100
 LOSS_RATE_CONNECTED = 10
 SWITCH_TIME = 30
@@ -192,7 +192,6 @@ if __name__ == '__main__':
     info('Setting NFD strategy to multicast on all nodes with prefix')
     for node in tqdm(ndn.net.hosts):
         Nfdc.setStrategy(node, "/ndn/", Nfdc.STRATEGY_MULTICAST)
-        Nfdc.setStrategy(node, "/voice/", Nfdc.STRATEGY_MULTICAST)
 
     info('Adding static routes to NFD\n')
     start = int(time.time() * 1000)
@@ -261,7 +260,7 @@ if __name__ == '__main__':
             connect_to_ap(ndn.net, current_link)
             current_link = (current_link + 1) % PLATOONS
 
-            sleep_time = SWITCH_TIME if i < NUM_ROUNDS * PLATOONS else 2 * SWITCH_TIME
+            sleep_time = SWITCH_TIME # if i < NUM_ROUNDS * PLATOONS else 2 * SWITCH_TIME
             sleep_start = time.time()
             while time.time() < sleep_start + sleep_time:
                 time.sleep(STATUS_LOG_INTERVAL_MS / 1000)

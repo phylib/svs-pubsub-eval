@@ -37,11 +37,7 @@ public:
         m_signingInfo.setSha256Signing();
 
         // Listen to data interests on /voice and Data
-        face.setInterestFilter("/voice/",
-                               bind(&AbstractProgram::onDataInterest, this, _1, _2),
-                               nullptr, // RegisterPrefixSuccessCallback is optional
-                               bind(&AbstractProgram::onRegisterFailed, this, _1, _2));
-        face.setInterestFilter("/position/",
+        face.setInterestFilter(ndn::Name("/voice/").append(m_participantPrefix),
                                bind(&AbstractProgram::onDataInterest, this, _1, _2),
                                nullptr, // RegisterPrefixSuccessCallback is optional
                                bind(&AbstractProgram::onRegisterFailed, this, _1, _2));
