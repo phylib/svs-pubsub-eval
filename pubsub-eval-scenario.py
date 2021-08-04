@@ -22,7 +22,7 @@ from mininet.node import OVSController
 from tqdm import tqdm
 
 # ======================= CONFIGURATION ============================
-OVERALL_RUN = 1
+OVERALL_RUN = 2
 DEBUG_GDB = False
 PLATOONS = 4
 NODES_PER_PLATOON = 5
@@ -219,7 +219,7 @@ if __name__ == '__main__':
     # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
     # MiniNDNCLI(ndn.net)
 
-    START_TIME = round(time.time() * 1000)
+    START_TIME = 0
 
     def writeStatus(prefix):
         for node in ndn.net.hosts:
@@ -233,6 +233,7 @@ if __name__ == '__main__':
     for run_number in RUN_NUMBER_VALS:
         # Set globals
         RUN_NUMBER = run_number
+        START_TIME = round(time.time() * 1000)
 
         # Clear content store
         for node in ndn.net.hosts:
@@ -256,13 +257,13 @@ if __name__ == '__main__':
         for i in range(0, (NUM_ROUNDS + 2) * PLATOONS + 1):
             if i == NUM_ROUNDS * PLATOONS:
                 os.system('pkill -SIGINT ' + APP_EXECUTABLE.split('/')[-1])
-                SWITCH_TIME *= 2
 
             connect_to_ap(ndn.net, current_link)
             current_link = (current_link + 1) % PLATOONS
 
+            sleep_time = SWITCH_TIME if i < NUM_ROUNDS * PLATOONS else 2 * SWITCH_TIME
             sleep_start = time.time()
-            while time.time() < sleep_start + SWITCH_TIME:
+            while time.time() < sleep_start + sleep_time:
                 time.sleep(STATUS_LOG_INTERVAL_MS / 1000)
                 writeStatus('eval')
 
