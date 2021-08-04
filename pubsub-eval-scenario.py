@@ -226,6 +226,9 @@ if __name__ == '__main__':
             with open("{}/report-{}-{}.status".format(getLogPath(), prefix, node.name), "a") as f:
                 f.write("EVAL_TIME=={}\n".format(round(time.time() * 1000) - START_TIME))
                 f.write(node.cmd('nfdc status report'))
+            with open("{}/report-{}-{}.ifconfig".format(getLogPath(), prefix, node.name), "a") as f:
+                f.write("EVAL_TIME=={}\n".format(round(time.time() * 1000) - START_TIME))
+                f.write(node.cmd('ifconfig'))
 
     for run_number in RUN_NUMBER_VALS:
         # Set globals
@@ -258,7 +261,8 @@ if __name__ == '__main__':
             connect_to_ap(ndn.net, current_link)
             current_link = (current_link + 1) % PLATOONS
 
-            for _ in range(0, SWITCH_TIME * (1000 / STATUS_LOG_INTERVAL_MS)):
+            sleep_start = time.time()
+            while time.time() < sleep_start + SWITCH_TIME:
                 time.sleep(STATUS_LOG_INTERVAL_MS / 1000)
                 writeStatus('eval')
 
