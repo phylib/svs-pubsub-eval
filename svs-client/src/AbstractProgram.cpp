@@ -85,9 +85,9 @@ void AbstractProgram::publishVoiceData() {
 
         // Generate a block of random Data
         std::array<__uint8_t, 1000> buf{};
-        ndn::random::generateSecureBytes(buf.data(), voiceSize);
+        ndn::random::generateSecureBytes(buf.data(), 16);
         ndn::Block block = ndn::encoding::makeBinaryBlock(
-                ndn::tlv::Content, buf.data(), voiceSize);
+                ndn::tlv::Content, buf.data(), 16);
 
         // Data packet
         ndn::Name realName(name);

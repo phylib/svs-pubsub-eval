@@ -22,7 +22,7 @@ from mininet.node import OVSController
 from tqdm import tqdm
 
 # ======================= CONFIGURATION ============================
-OVERALL_RUN = 10
+OVERALL_RUN = 13
 DEBUG_GDB = False
 PLATOONS = 4
 NODES_PER_PLATOON = 5
@@ -37,6 +37,7 @@ NFD_SLEEP_TIME = 2
 
 PROTO = "svs"
 #PROTO = "syncps"
+#PROTO = "ip"
 
 APP_EXECUTABLE = None
 UAV_EXECUTABLE = None
@@ -47,6 +48,9 @@ if PROTO == "svs":
 elif PROTO == "syncps":
     APP_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SyncpsClient"
     UAV_EXECUTABLE = "/home/vagrant/svs-pubsub-eval/svs-client/SyncpsUAV"
+elif PROTO == "ip":
+    APP_EXECUTABLE = "/home/vagrant/dtn7-go/dtnd"
+    UAV_EXECUTABLE = "/home/vagrant/dtn7-go/uav"
 
 LOG_MAIN_PATH = "/vagrant/logs/{}/".format(OVERALL_RUN)
 # ==================================================================
@@ -127,8 +131,12 @@ class PlatoonClient(Application):
         self.prefix = unitname_to_name_prefix(node.name)
 
     def start(self):
-        run_cmd = "{0} {1} {2}/{3}.log > {2}/stdout/{3}.log 2> {2}/stderr/{3}.log &".format(
-            APP_EXECUTABLE, self.prefix, getLogPath(), self.node.name)
+        if PROTO == "ip":
+            run_cmd = "{0} {3} {2}/{3}.log :8333 store_{3} > {2}/stdout/{3}.log 2> {2}/stderr/{3}.log &".format(
+                APP_EXECUTABLE, self.prefix, getLogPath(), self.node.name)
+        else:
+            run_cmd = "{0} {1} {2}/{3}.log > {2}/stdout/{3}.log 2> {2}/stderr/{3}.log &".format(
+                APP_EXECUTABLE, self.prefix, getLogPath(), self.node.name)
 
         ret = self.node.cmd(run_cmd)
         info("[{}] running \"{}\" == {}\n".format(
@@ -144,8 +152,13 @@ class UAVClient(Application):
         Application.__init__(self, node)
 
     def start(self):
-        run_cmd = "{0} > {1}/stdout/{2}.log 2> {1}/stderr/{2}.log &".format(
-            UAV_EXECUTABLE, getLogPath(), self.node.name)
+        if PROTO == "ip":
+            run_cmd = "{0} {3} {2}/{3}.log :8333 store_{3} > {2}/stdout/{3}.log 2> {2}/stderr/{3}.log &".format(
+                UAV_EXECUTABLE, "/uav", getLogPath(), self.node.name)
+        else:
+            run_cmd = "{0} > {1}/stdout/{2}.log 2> {1}/stderr/{2}.log &".format(
+                UAV_EXECUTABLE, getLogPath(), self.node.name)
+
         ret = self.node.cmd(run_cmd)
         info("[{}] running \"{}\" == {}\n".format(
             self.node.name, run_cmd, ret))
@@ -164,7 +177,11 @@ if __name__ == '__main__':
     access_points = []
     units = []
     for i in range(0, PLATOONS):
-        access_points.append(topo.addHost('ap{}'.format(i)))
+        if PROTO == 'ip':
+            access_points.append(topo.addSwitch('ap{}'.format(i)))
+        else:
+            access_points.append(topo.addHost('ap{}'.format(i)))
+
         topo.addLink(uav, access_points[i], delay='10ms')
 
         for j in range(0, NODES_PER_PLATOON):
@@ -192,6 +209,7 @@ if __name__ == '__main__':
     info('Setting NFD strategy to multicast on all nodes with prefix')
     for node in tqdm(ndn.net.hosts):
         Nfdc.setStrategy(node, "/ndn/", Nfdc.STRATEGY_MULTICAST)
+        Nfdc.setStrategy(node, "/voice/", Nfdc.STRATEGY_MULTICAST)
 
     info('Adding static routes to NFD\n')
     start = int(time.time() * 1000)
@@ -200,16 +218,17 @@ if __name__ == '__main__':
 
     grh = NdnRoutingHelper(ndn.net, 'udp', 'link-state')
     # Add /ndn and /voice prefix to the UAV and to all units
-    grh.addOrigin([ndn.net["uav"]], ["/ndn", "/voice"])
+    grh.addOrigin([ndn.net["uav"]], ["/ndn"])
     for unit in units:
         grh.addOrigin([ndn.net[unit]], ["/ndn", "/voice"])
 
-    grh.calculateNPossibleRoutes()
+    if PROTO != "ip":
+        grh.calculateNPossibleRoutes()
 
-    end = int(time.time() * 1000)
-    info('Added static routes to NFD in {} ms\n'.format(end - start))
-    info('Sleeping {} seconds\n'.format(NFD_SLEEP_TIME))
-    time.sleep(NFD_SLEEP_TIME)
+        end = int(time.time() * 1000)
+        info('Added static routes to NFD in {} ms\n'.format(end - start))
+        info('Sleeping {} seconds\n'.format(NFD_SLEEP_TIME))
+        time.sleep(NFD_SLEEP_TIME)
 
     #all_nodes = [ndn.net[unit] for unit in units] + [ndn.net["uav"]]
     #AppManager(ndn, all_nodes, PingServer)
@@ -222,9 +241,10 @@ if __name__ == '__main__':
 
     def writeStatus(prefix):
         for node in ndn.net.hosts:
-            with open("{}/report-{}-{}.status".format(getLogPath(), prefix, node.name), "a") as f:
-                f.write("EVAL_TIME=={}\n".format(round(time.time() * 1000) - START_TIME))
-                f.write(node.cmd('nfdc status report'))
+            if PROTO != 'ip':
+                with open("{}/report-{}-{}.status".format(getLogPath(), prefix, node.name), "a") as f:
+                    f.write("EVAL_TIME=={}\n".format(round(time.time() * 1000) - START_TIME))
+                    f.write(node.cmd('nfdc status report'))
             with open("{}/report-{}-{}.ifconfig".format(getLogPath(), prefix, node.name), "a") as f:
                 f.write("EVAL_TIME=={}\n".format(round(time.time() * 1000) - START_TIME))
                 f.write(node.cmd('ifconfig'))
@@ -236,8 +256,9 @@ if __name__ == '__main__':
 
         # Clear content store
         for node in ndn.net.hosts:
-            cmd = 'nfdc cs erase /'
-            node.cmd(cmd)
+            if PROTO != 'ip':
+                cmd = 'nfdc cs erase /'
+                node.cmd(cmd)
 
         writeStatus('start')
 
@@ -252,8 +273,8 @@ if __name__ == '__main__':
         AppManager(ndn, [ndn.net[unit] for unit in units], PlatoonClient)
         AppManager(ndn, [ndn.net["uav"]], UAVClient)
 
-        current_link = 0
-        for i in range(0, (NUM_ROUNDS + 2) * PLATOONS + 1):
+        current_link = 1
+        for i in range(0, (NUM_ROUNDS + 3) * PLATOONS + 1):
             if i == NUM_ROUNDS * PLATOONS:
                 os.system('pkill -SIGINT ' + APP_EXECUTABLE.split('/')[-1])
 
@@ -267,8 +288,8 @@ if __name__ == '__main__':
                 writeStatus('eval')
 
         # kill all
-        os.system('pkill ' + APP_EXECUTABLE.split('/')[-1])
-        os.system('pkill ' + UAV_EXECUTABLE.split('/')[-1])
+        os.system('killall ' + APP_EXECUTABLE.split('/')[-1])
+        os.system('killall ' + UAV_EXECUTABLE.split('/')[-1])
         time.sleep(3)
 
         writeStatus('end')

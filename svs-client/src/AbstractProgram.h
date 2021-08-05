@@ -32,7 +32,7 @@ public:
               m_rng(ndn::random::getRandomNumberEngine()),
               m_positionDataIntervalDist(5000 * 0.9, 5000 * 1.1), // Position data published every second
               m_voiceDataIntervalDist(10000, 60000), // Voice data published every 10-60 seconds
-              m_voiceDataSizeDist(12, 20) { // Size of voice publications between 12 and 20 bytes
+              m_voiceDataSizeDist(10, 20) { // Size of voice publications between 12 and 20 bytes
 
         m_signingInfo.setSha256Signing();
 
