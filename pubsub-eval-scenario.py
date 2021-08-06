@@ -22,16 +22,18 @@ from mininet.node import OVSController
 from tqdm import tqdm
 
 # ======================= CONFIGURATION ============================
-OVERALL_RUN = 13
-DEBUG_GDB = False
+OVERALL_RUN = 25
 PLATOONS = 4
 NODES_PER_PLATOON = 5
-RUN_NUMBER_VALS = range(0, 1)
 LOSS_RATE_DISCONNECTED = 100
 LOSS_RATE_CONNECTED = 10
 SWITCH_TIME = 30
-NUM_ROUNDS = 3
+NUM_ROUNDS = 2  # (while publishing)
+# 3 rounds after stop publish
+
 STATUS_LOG_INTERVAL_MS = 500
+RUN_NUMBER_VALS = range(0, 1)
+DEBUG_GDB = False
 
 NFD_SLEEP_TIME = 2
 

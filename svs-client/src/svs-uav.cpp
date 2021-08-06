@@ -61,6 +61,7 @@ public:
                 face,
                 std::bind(&SVSUAV::onMissingData, this, _1),
                 securityOptions);
+        m_svspubsub->getSVSync().getFetcher().windowSize = 40;
 
         m_svspubsub->subscribeToPrefix(
                 ndn::Name("/position"), [&](SVSPubSub::SubscriptionData subData) {

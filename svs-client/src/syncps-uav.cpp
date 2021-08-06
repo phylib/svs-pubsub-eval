@@ -52,6 +52,10 @@ public:
         m_sync = std::make_shared<syncps::SyncPubsub>(
                 face, m_syncPrefix, isExpired, filterPubs);
         m_sync->setSyncInterestLifetime(ndn::time::milliseconds(1000));
+
+        m_sync->subscribeTo("/position", [](const syncps::Publication& pub){
+            std::cout << "GOT: " << pub.getName() << std::endl;
+        });
     }
 
 

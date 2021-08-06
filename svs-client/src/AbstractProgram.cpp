@@ -3,6 +3,7 @@
 //
 
 #include "AbstractProgram.h"
+#define HAS_VOICE 1
 
 bool receivedSigInt = false;
 
@@ -61,14 +62,17 @@ void AbstractProgram::publishPositionData() {
 }
 
 void AbstractProgram::voiceDataPublishingLoop() {
+#if HAS_VOICE
     while (m_running) {
         int delay = m_voiceDataIntervalDist(m_rng);
         std::this_thread::sleep_for(std::chrono::milliseconds(delay));
         publishVoiceData();
     }
+#endif
 }
 
 void AbstractProgram::publishVoiceData() {
+#if HAS_VOICE
     // Abort if received one interrupt
     if (receivedSigInt) return;
 
@@ -85,9 +89,9 @@ void AbstractProgram::publishVoiceData() {
 
         // Generate a block of random Data
         std::array<__uint8_t, 1000> buf{};
-        ndn::random::generateSecureBytes(buf.data(), 16);
+        ndn::random::generateSecureBytes(buf.data(), 512);
         ndn::Block block = ndn::encoding::makeBinaryBlock(
-                ndn::tlv::Content, buf.data(), 16);
+                ndn::tlv::Content, buf.data(), 512);
 
         // Data packet
         ndn::Name realName(name);
@@ -111,6 +115,7 @@ void AbstractProgram::publishVoiceData() {
 
         // Todo: Log published Data
     }
+#endif
 }
 
 
