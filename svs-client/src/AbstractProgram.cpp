@@ -36,7 +36,7 @@ void AbstractProgram::publishPositionData() {
     if (receivedSigInt) return;
 
     // Generate a block of random Data
-    std::array<__uint8_t, 16> buf{};
+    std::array<__uint8_t, 1024> buf{};
     ndn::random::generateSecureBytes(buf.data(), buf.size());
     ndn::Block block = ndn::encoding::makeBinaryBlock(
             ndn::tlv::Content, buf.data(), buf.size());

@@ -21,12 +21,23 @@ from mininet.node import OVSController
 
 from tqdm import tqdm
 
+from mininet.log import setLogLevel, info
+from minindn.wifi.minindnwifi import MinindnWifi
+from minindn.util import MiniNDNWifiCLI, getPopen
+from minindn.apps.app_manager import AppManager
+from minindn.apps.nfd import Nfd
+from minindn.helpers.nfdc import Nfdc
+from minindn.helpers.ndnping import NDNPing
+from time import sleep
+from mn_wifi.link import WirelessLink, adhoc, wmediumd
+from mn_wifi.wmediumdConnector import interference
+
 # ======================= CONFIGURATION ============================
-OVERALL_RUN = 52
+OVERALL_RUN = 47
 PLATOONS = 4
 NODES_PER_PLATOON = 5
 LOSS_RATE_DISCONNECTED = 100
-LOSS_RATE_CONNECTED = 10
+LOSS_RATE_CONNECTED = 1
 SWITCH_TIME = 30
 NUM_ROUNDS = 2  # (while publishing)
 # 3 rounds after stop publish
@@ -36,11 +47,10 @@ RUN_NUMBER_VALS = range(0, 1)
 DEBUG_GDB = False
 
 NFD_SLEEP_TIME = 2
-BWD = 5
 
-PROTO = "svs"
+#PROTO = "svs"
 #PROTO = "syncps"
-#PROTO = "ip"
+PROTO = "ip"
 
 APP_EXECUTABLE = None
 UAV_EXECUTABLE = None
@@ -88,23 +98,6 @@ def unitname_to_name_prefix(nodename):
     platoon_id = nodename.split('_')[1]
     unit_id = nodename.split('_')[2]
     return "/ndn/platoon{}/unit{}/".format(platoon_id, unit_id)
-
-
-def set_link_loss_to(net, nodename_a, nodename_b, loss_rate):
-    node_a = net[nodename_a]
-    node_b = net[nodename_b]
-    links = node_a.connectionsTo(node_b)
-    for link in links:
-        link[0].config(loss=loss_rate, bw=BWD, delay="10ms")
-        link[1].config(loss=loss_rate, bw=BWD, delay="10ms")
-
-
-def connect_to_ap(net, ap_number):
-    info("Connect to AP{}\n".format(ap_number))
-    for i in range(0, PLATOONS):
-        ap_name = "ap{}".format(i)
-        loss_rate = LOSS_RATE_CONNECTED if i == ap_number else LOSS_RATE_DISCONNECTED
-        set_link_loss_to(net, "uav", ap_name, loss_rate)
 
 
 class PingServer(Application):
@@ -173,77 +166,44 @@ if __name__ == '__main__':
     Minindn.cleanUp()
     Minindn.verifyDependencies()
 
-    topo = Topo()
+    ndn = MinindnWifi(link=wmediumd, wmediumd_mode=interference)
 
-    # Create topology here
-    uav = topo.addHost('uav')
-    access_points = []
-    units = []
-    for i in range(0, PLATOONS):
-        if PROTO == 'ip':
-            access_points.append(topo.addSwitch('ap{}'.format(i)))
-        else:
-            access_points.append(topo.addHost('ap{}'.format(i)))
+    uav = ndn.net["uav"]
+    uav.coord = ['400,800,0',
+                 '800,800,0', '800,200,0', '200,200,0', '200,800,0', '400,800,0',
+                 '800,800,0', '800,200,0', '200,200,0', '200,800,0', '400,800,0',
+                 '800,800,0', '800,200,0', '200,200,0', '200,800,0', '400,800,0',
+                 '800,800,0', '800,200,0', '200,200,0', '200,800,0', '400,800,0',
+                 '800,800,0', '800,200,0', '200,200,0', '200,800,0', '400,800,0']
 
-        topo.addLink(uav, access_points[i], delay='10ms', bw=BWD)
+    ndn.net.mobility(uav, 'start', time=0, position=uav.coord[0])
+    ndn.net.mobility(uav, 'stop', time=SWITCH_TIME*4*5, position=uav.coord[-1])
 
-        for j in range(0, NODES_PER_PLATOON):
-            unit = topo.addHost('unit_{}_{}'.format(i, j))
-            topo.addLink(access_points[i], unit, delay='10ms', bw=BWD)
-            units.append(unit)
+    ndn.net.setPropagationModel(model="friis")
 
-    ndn = Minindn(topo=topo, controller=OVSController)
-
-    ndn.start()
-
-    # Dump IP addresses of nodes to JSON
-    ips = {}
-    for node in ndn.net.hosts:
-        ips[node.name] = [node.IP(n) for n in node.intfList()]
-    with open("{}/ips.json".format(getLogPath()), "w") as f:
-        json.dump(ips, f, indent=4)
-    info('Wrote IP addresses to ips.json\n')
+    ndn.net.stopMobility(time=SWITCH_TIME*4*5)
+    ndn.startMobility(time=0, draw=False)
 
     info('Starting NFD on nodes\n')
-    nfds = AppManager(ndn, ndn.net.hosts, Nfd)
+    nfds = AppManager(ndn, ndn.net.stations, Nfd)
     info('Sleeping {} seconds\n'.format(NFD_SLEEP_TIME))
     time.sleep(NFD_SLEEP_TIME)
 
     info('Setting NFD strategy to multicast on all nodes with prefix')
-    for node in tqdm(ndn.net.hosts):
+    for node in tqdm(ndn.net.stations):
         Nfdc.setStrategy(node, "/ndn/", Nfdc.STRATEGY_MULTICAST)
         Nfdc.setStrategy(node, "/voice/", Nfdc.STRATEGY_MULTICAST)
 
-    info('Adding static routes to NFD\n')
-    start = int(time.time() * 1000)
-
-    print(units[0])
-
-    grh = NdnRoutingHelper(ndn.net, 'udp', 'link-state')
-    # Add /ndn and /voice prefix to the UAV and to all units
-    grh.addOrigin([ndn.net["uav"]], ["/ndn"])
-    for unit in units:
-        grh.addOrigin([ndn.net[unit]], ["/ndn", "/voice"])
-
-    if PROTO != "ip":
-        grh.calculateNPossibleRoutes()
-
-        end = int(time.time() * 1000)
-        info('Added static routes to NFD in {} ms\n'.format(end - start))
-        info('Sleeping {} seconds\n'.format(NFD_SLEEP_TIME))
-        time.sleep(NFD_SLEEP_TIME)
-
-    #all_nodes = [ndn.net[unit] for unit in units] + [ndn.net["uav"]]
-    #AppManager(ndn, all_nodes, PingServer)
-    # print("\n--- Link from UAV to AP3 should be the only one that is connected, try the following to verify ---")
-    # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon3/unit1")
-    # print("uav ndnping -o 1000 -i 500 -c 10 -p $(openssl rand -hex 10) /ndn/platoon0/unit1")
-    # MiniNDNCLI(ndn.net)
+        ln = [k.strip() for k in node.cmd('nfdc status report').split('\n') if 'faceid=' in k and 'wlan0' in k and 'dev://' in k][0]
+        faceid = ((ln.split(' ')[0]).split('='))[1]
+        print(faceid)
+        node.cmd("nfdc route add prefix /ndn nexthop " + faceid)
+        node.cmd("nfdc route add prefix /voice nexthop " + faceid)
 
     START_TIME = 0
 
     def writeStatus(prefix):
-        for node in ndn.net.hosts:
+        for node in ndn.net.stations:
             if PROTO != 'ip':
                 with open("{}/report-{}-{}.status".format(getLogPath(), prefix, node.name), "a") as f:
                     f.write("EVAL_TIME=={}\n".format(round(time.time() * 1000) - START_TIME))
@@ -258,22 +218,24 @@ if __name__ == '__main__':
         START_TIME = round(time.time() * 1000)
 
         # Clear content store
-        for node in ndn.net.hosts:
+        for node in ndn.net.stations:
+            ndn.net.addLink(node, cls=adhoc, intf=node.name+'-wlan0', ssid='adhocNet')
+
             if PROTO != 'ip':
                 cmd = 'nfdc cs erase /'
                 node.cmd(cmd)
 
         writeStatus('start')
 
-        time.sleep(1)
-
         random.seed(RUN_NUMBER)
 
         info('UAV initially connects to AP0\n')
-        connect_to_ap(ndn.net, 0)
+
+        # star moving
+        ndn.start()
 
         info('Start units and UAV\n')
-        AppManager(ndn, [ndn.net[unit] for unit in units], PlatoonClient)
+        AppManager(ndn, [unit for unit in ndn.net.stations if unit.name != 'uav'], PlatoonClient)
         AppManager(ndn, [ndn.net["uav"]], UAVClient)
 
         current_link = 1
@@ -281,7 +243,6 @@ if __name__ == '__main__':
             if i == NUM_ROUNDS * PLATOONS:
                 os.system('pkill -SIGINT ' + APP_EXECUTABLE.split('/')[-1])
 
-            connect_to_ap(ndn.net, current_link)
             current_link = (current_link + 1) % PLATOONS
 
             sleep_time = SWITCH_TIME # if i < NUM_ROUNDS * PLATOONS else 2 * SWITCH_TIME
@@ -297,4 +258,5 @@ if __name__ == '__main__':
 
         writeStatus('end')
 
-    ndn.stop()
+    ndn.net.stop()
+    ndn.cleanUp()

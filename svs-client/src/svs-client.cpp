@@ -26,7 +26,8 @@ class SVSProgram : public AbstractProgram {
 
 public:
     SVSProgram(ndn::Name syncPrefix, ndn::Name participantPrefix)
-            : AbstractProgram(syncPrefix, participantPrefix) {
+            : AbstractProgram(syncPrefix, participantPrefix)
+            , m_participantPrefix(participantPrefix) {
 
         instanciateSync();
     }
@@ -45,8 +46,26 @@ public:
                 std::bind(&SVSProgram::onMissingData, this, _1),
                 securityOptions);
 
-        m_svspubsub->subscribeToPrefix(
-                ndn::Name("/position"), [&](SVSPubSub::SubscriptionData subData) {
+        std::vector<std::string> platoons;
+        auto p = m_participantPrefix.get(1).toUri();
+        platoons.push_back(p);
+        if (p == "platoon0") {
+            platoons.push_back("platoon3");
+            platoons.push_back("platoon1");
+        } else if (p == "platoon1") {
+            platoons.push_back("platoon0");
+            platoons.push_back("platoon2");
+        } else if (p == "platoon2") {
+            platoons.push_back("platoon1");
+            platoons.push_back("platoon3");
+        } else if (p == "platoon3") {
+            platoons.push_back("platoon2");
+            platoons.push_back("platoon0");
+        }
+
+        for (const auto p : platoons) {
+            m_svspubsub->subscribeToPrefix(
+                ndn::Name("/position/ndn/" + p), [&](SVSPubSub::SubscriptionData subData) {
                     // Todo: Log received Data
                     const unsigned long data_size = subData.data.getContent().value_size();
                     const std::basic_string<char> content_str((char *) subData.data.getContent().value(), data_size);
@@ -57,6 +76,7 @@ public:
 
                     BOOST_LOG_TRIVIAL(info) << "RECV_MSG::" << subData.data.getName().toUri();
                 });
+        }
 
         m_svspubsub->subscribeToPrefix(
                 ndn::Name("/voice").append(m_platoonPrefix), [&](SVSPubSub::SubscriptionData subData) {
@@ -83,6 +103,7 @@ public:
 
 protected:
     std::shared_ptr<SVSPubSub> m_svspubsub;
+    ndn::Name m_participantPrefix;
 
 };
 
